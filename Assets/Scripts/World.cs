@@ -9,6 +9,9 @@ public class World : MonoBehaviour {
     public List<Player> players = new();
     public PlayerController playerControllerPrefab;
     public PlayerController playerController;
+    public GameplayStateRunner gameplayStateRunner;
+    public Canvas canvas;
+    public BoxCollider worldBounds;
 
     private readonly Dictionary<Type, WorldSubsystem> subsystems = new();
 
@@ -60,6 +63,8 @@ public class World : MonoBehaviour {
             playerProperty.OwningPlayer = playerToAssign;
             prePlacedPlayerProperty.gameObject.SetActive(true);
         }
+        
+        gameplayStateRunner = Spawn<GameplayStateRunner>();
     }
     
     public T GetSubsystem<T>() where T : WorldSubsystem {
@@ -73,10 +78,15 @@ public class World : MonoBehaviour {
         onObjectSpawned?.Invoke(instance);
         return instance;
     }
+
     public T Spawn<T>(T prefab, Action<T> setup = null) where T : WorldBehaviour {
+         return Spawn(prefab, null, setup);
+    }
+
+    public T Spawn<T>(T prefab, Transform parent, Action<T> setup = null) where T : WorldBehaviour {
         var wasPrefabActive = prefab.gameObject.activeSelf;
         prefab.gameObject.SetActive(false);
-        var instance = Instantiate(prefab);
+        var instance = Instantiate(prefab, parent);
         instance.world = this;
         setup?.Invoke(instance);
         prefab.gameObject.SetActive(wasPrefabActive);
@@ -84,6 +94,7 @@ public class World : MonoBehaviour {
         onObjectSpawned?.Invoke(instance);
         return instance;
     }
+    
     public void Destroy(WorldBehaviour obj) {
         onObjectDestroyed?.Invoke(obj);
         Object.Destroy(obj);

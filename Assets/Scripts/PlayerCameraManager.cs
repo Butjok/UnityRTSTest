@@ -18,7 +18,7 @@ public class PlayerCameraManager : WorldBehaviour {
         position = playerController.transform.position + startPositionOffset;
     }
 
-    public void GetView(ref Vector3 position, ref Quaternion rotation) {
+    public void GetView(out Vector3 position, out Quaternion rotation) {
         position = this.position;
         rotation = Quaternion.Euler(pitch, yaw, 0);
     }

@@ -57,7 +57,7 @@ MonoBehaviour:
   selectionCircleRenderer: {fileID: 635482942073229039}
   radiusInFormation: 0.5
   moveSpeed: 3
-  health: 0.3
+  health: 1
 --- !u!135 &2557441229617441091
 SphereCollider:
   m_ObjectHideFlags: 0

@@ -5,7 +5,7 @@ public abstract class AbstractEntityRegistry<T> : WorldSubsystem {
 
     private List<T> entities = new();
 
-    public IEnumerable<T> Entities => entities;
+    public virtual IEnumerable<T> Entities => entities;
 
     protected virtual void Start() {
         var objects = FindObjectsByType<Object>(FindObjectsInactive.Include, FindObjectsSortMode.None);

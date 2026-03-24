@@ -6,6 +6,7 @@ public class Building : WorldBehaviour, ISelectable, IHasHealth, IPlayerProperty
     [SerializeField] private Player owningPlayer;
     [SerializeField] private MeshRenderer meshRenderer;
     [SerializeField] private List<Unit> buildableUnits = new();
+    [SerializeField] private List<Material> ghostMaterials = new();
 
     public Bounds SelectionBounds => meshRenderer.bounds;
 
@@ -54,4 +55,12 @@ public class Building : WorldBehaviour, ISelectable, IHasHealth, IPlayerProperty
                 material.SetColor("_BaseColor", playerColor);
         }
     }
+
+    private bool isGhost;
+    public void SetUpAsGhost() {
+        isGhost = true;
+        meshRenderer.SetSharedMaterials(ghostMaterials);
+    }
+
+    public bool IgnoreSelection => isGhost;
 }

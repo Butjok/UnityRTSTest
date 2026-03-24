@@ -35,6 +35,8 @@ public class PlayerHUD : WorldBehaviour {
         new HealthColorRampPoint { end = 1, color = Color.green },
     };
 
+    [SerializeField] private RadarRenderer radarRenderer;
+
     private void Awake() {
         marqueeBackgroundTexture = new Texture2D(1, 1);
         marqueeBackgroundTexture.SetPixel(0, 0, marqueeColor);
@@ -66,6 +68,8 @@ public class PlayerHUD : WorldBehaviour {
                 background = unitHealthBarBackgroundTexture
             }
         };
+        
+        radarRenderer.world = world;
     }
 
     public Rect GetOnScreenBounds(Bounds bounds, Camera camera) {

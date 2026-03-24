@@ -31,13 +31,23 @@ public class PlayerController : WorldBehaviour {
     private LayerMask nonUnitLayerMask;
 
     public Camera PlayerCamera => playerCamera;
+    
+    public bool enableSelection = true;
+    public bool enableUnitOrders = true;
+    public bool enableBuildingPlacement = true;
+
+    public Building buildingPrefabToPlace;
+    public Dictionary<Building, Building> buildingGhosts = new();
+    public float buildingPlacementYaw = 0;
 
     private void Awake() {
         nonUnitLayerMask = ~LayerMask.GetMask("Unit");
         if (playerCameraManagerPrefab)
             playerCameraManager = world.Spawn(playerCameraManagerPrefab, o => o.playerController = this);
         if (playerHUDPrefab)
-            playerHUD = world.Spawn(playerHUDPrefab, playerHUD => playerHUD.owningPlayerController = this);
+            playerHUD = world.Spawn(playerHUDPrefab, world.canvas.transform, playerHUD => {
+                playerHUD.owningPlayerController = this;
+            });
 
         UpdatePlayerCameraTransform();
 
@@ -77,72 +87,90 @@ public class PlayerController : WorldBehaviour {
 
         UpdatePlayerCameraTransform();
 
-        if (Input.GetMouseButtonDown(MouseButton.left)) {
-            marqueeStart = Input.mousePosition;
-            marqueeEnd = marqueeStart.Value;
+        if (enableSelection) {
+            if (Input.GetMouseButtonDown(MouseButton.left)) {
+                marqueeStart = Input.mousePosition;
+                marqueeEnd = marqueeStart.Value;
 
-            selectedEntities.Clear();
-            selectedEntitiesSet.Clear();
-        }
-
-        else if (Input.GetMouseButton(MouseButton.left)) {
-            marqueeEnd = Input.mousePosition;
-
-            selectedEntities.Clear();
-            selectedEntitiesSet.Clear();
-            selectedUnits.Clear();
-            selectedBuildings.Clear();
-
-            var selectablesRegistry = world.GetSubsystem<SelectablesRegistry>();
-            if (selectablesRegistry)
-                foreach (var selectable in selectablesRegistry.Entities) {
-                    var onScreenBounds = playerHUD.GetOnScreenBounds(selectable.SelectionBounds, playerCamera);
-                    var marqueeMin = Vector2.Min(marqueeStart.Value, marqueeEnd);
-                    var marqueeMax = Vector2.Max(marqueeStart.Value, marqueeEnd);
-                    var marqueeRect = Rect.MinMaxRect(marqueeMin.x, marqueeMin.y, marqueeMax.x, marqueeMax.y);
-                    if (marqueeRect.Overlaps(onScreenBounds)) {
-                        selectedEntities.Add(selectable);
-                        if (selectable is Unit unit)
-                            selectedUnits.Add(unit);
-                        else if (selectable is Building building)
-                            selectedBuildings.Add(building);
-                    }
-                }
-            selectedEntitiesSet.AddRange(selectedEntities);
-
-            foreach (var selectable in selectedEntitiesSet)
-                if (!oldSelectedEntitiesSet.Contains(selectable))
-                    selectable.IsSelected = true;
-            foreach (var selectable in oldSelectedEntitiesSet)
-                if (!selectedEntitiesSet.Contains(selectable))
-                    selectable.IsSelected = false;
-
-            oldSelectedEntitiesSet.Clear();
-            oldSelectedEntitiesSet.UnionWith(selectedEntitiesSet);
-        }
-
-        else if (Input.GetMouseButtonUp(MouseButton.left)) {
-            marqueeStart = null;
-            marqueeEnd = Vector2.zero;
-        }
-
-        if (Input.GetMouseButtonDown(MouseButton.right) && selectedEntities.Count > 0) {
-            if (TryTraceRay(Input.mousePosition, out var hitInfo)) {
-                var targetPosition = hitInfo.point;
-
-                formationPositions.Clear();
-                foreach (var unit in selectedUnits)
-                    formationPositions[unit] = Vector3.zero;
-                UnitFormation.FormAround(targetPosition, formationPositions);
-
-                UnitFormation.ProjectToNavMesh(formationPositions);
-
-                foreach (var unit in selectedUnits)
-                    unit.SetMoveDestination(formationPositions[unit]);
+                selectedEntities.Clear();
+                selectedEntitiesSet.Clear();
             }
-            else
-                foreach (var unit in selectedUnits)
-                    unit.ClearMoveDestination();
+
+            else if (Input.GetMouseButton(MouseButton.left)) {
+                marqueeEnd = Input.mousePosition;
+
+                selectedEntities.Clear();
+                selectedEntitiesSet.Clear();
+                selectedUnits.Clear();
+                selectedBuildings.Clear();
+
+                var selectablesRegistry = world.GetSubsystem<SelectablesRegistry>();
+                if (selectablesRegistry)
+                    foreach (var selectable in selectablesRegistry.Entities) {
+                        var onScreenBounds = playerHUD.GetOnScreenBounds(selectable.SelectionBounds, playerCamera);
+                        var marqueeMin = Vector2.Min(marqueeStart.Value, marqueeEnd);
+                        var marqueeMax = Vector2.Max(marqueeStart.Value, marqueeEnd);
+                        var marqueeRect = Rect.MinMaxRect(marqueeMin.x, marqueeMin.y, marqueeMax.x, marqueeMax.y);
+                        if (marqueeRect.Overlaps(onScreenBounds)) {
+                            selectedEntities.Add(selectable);
+                            if (selectable is Unit unit)
+                                selectedUnits.Add(unit);
+                            else if (selectable is Building building)
+                                selectedBuildings.Add(building);
+                        }
+                    }
+                selectedEntitiesSet.AddRange(selectedEntities);
+
+                foreach (var selectable in selectedEntitiesSet)
+                    if (!oldSelectedEntitiesSet.Contains(selectable))
+                        selectable.IsSelected = true;
+                foreach (var selectable in oldSelectedEntitiesSet)
+                    if (!selectedEntitiesSet.Contains(selectable))
+                        selectable.IsSelected = false;
+
+                oldSelectedEntitiesSet.Clear();
+                oldSelectedEntitiesSet.UnionWith(selectedEntitiesSet);
+            }
+
+            else if (Input.GetMouseButtonUp(MouseButton.left)) {
+                marqueeStart = null;
+                marqueeEnd = Vector2.zero;
+            }
+        }
+
+        if (enableUnitOrders) {
+            if (Input.GetMouseButtonDown(MouseButton.right) && selectedEntities.Count > 0) {
+                if (TryTraceRay(Input.mousePosition, out var hitInfo)) {
+                    var targetPosition = hitInfo.point;
+
+                    formationPositions.Clear();
+                    foreach (var unit in selectedUnits)
+                        formationPositions[unit] = Vector3.zero;
+                    UnitFormation.FormAround(targetPosition, formationPositions);
+
+                    UnitFormation.ProjectToNavMesh(formationPositions);
+
+                    foreach (var unit in selectedUnits)
+                        unit.SetMoveDestination(formationPositions[unit]);
+                }
+                else
+                    foreach (var unit in selectedUnits)
+                        unit.ClearMoveDestination();
+            }
+        }
+
+        if (enableBuildingPlacement) {
+            if (buildingPrefabToPlace) {
+                EnsureBuildingGhostExists(buildingPrefabToPlace);
+                var ghost = buildingGhosts[buildingPrefabToPlace];
+                if (TryTraceRay(Input.mousePosition, out var hitInfo)) {
+                    ghost.gameObject.SetActive(true);
+                    ghost.transform.position = hitInfo.point;
+                    ghost.transform.rotation = Quaternion.Euler(0, buildingPlacementYaw, 0);
+                }
+                else 
+                    ghost.gameObject.SetActive(false);
+            }
         }
 
         if (Input.GetKeyDown(KeyCode.Space)) {
@@ -151,6 +179,17 @@ public class PlayerController : WorldBehaviour {
                     unit.OwningPlayer = player;
                     unit.transform.position = hitInfo.point;
                 });
+        }
+    }
+    
+    public void EnsureBuildingGhostExists(Building building) {
+        if (!buildingGhosts.ContainsKey(building)) {
+            var ghost = world.Spawn(buildingPrefabToPlace, ghost => {
+                ghost.GetComponent<Collider>().enabled = false;
+                ghost.SetUpAsGhost();
+            });
+            buildingGhosts[building] = ghost;
+            ghost.gameObject.SetActive(false);
         }
     }
 
@@ -163,7 +202,7 @@ public class PlayerController : WorldBehaviour {
         if (playerCameraManager) {
             var cameraPosition = Vector3.zero;
             var cameraRotation = Quaternion.identity;
-            playerCameraManager.GetView(ref cameraPosition, ref cameraRotation);
+            playerCameraManager.GetView(out cameraPosition, out cameraRotation);
             playerCamera.transform.position = cameraPosition;
             playerCamera.transform.rotation = cameraRotation;
         }

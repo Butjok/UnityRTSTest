@@ -50,8 +50,13 @@ MonoBehaviour:
   player: {fileID: 0}
   playerCamera: {fileID: 1514448831429975428}
   playerCameraManagerPrefab: {fileID: 223674565629059951, guid: 987e841f50cc74391a0db8e08e96e22f, type: 3}
-  playerHUDPrefab: {fileID: 3662289192355675341, guid: 395d30d0c486845238e6bfd177424f15, type: 3}
+  playerHUDPrefab: {fileID: 4936714913128556743, guid: 395d30d0c486845238e6bfd177424f15, type: 3}
   unitPrefab: {fileID: 8676087694340533686, guid: cbb1a2defcacc4ea2af8ce9538274c01, type: 3}
+  enableSelection: 1
+  enableUnitOrders: 1
+  enableBuildingPlacement: 1
+  buildingPrefabToPlace: {fileID: 4128571816054445560, guid: de3edd7c6e1504bc4a5e58ecf29a0874, type: 3}
+  buildingPlacementYaw: 0
 --- !u!20 &1514448831429975428
 Camera:
   m_ObjectHideFlags: 0

@@ -3,4 +3,5 @@ using UnityEngine;
 public interface ISelectable {
     public Bounds SelectionBounds { get; }
     public bool IsSelected { get; set; }
+    public bool IgnoreSelection => false;
 }
