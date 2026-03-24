@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
@@ -46,15 +47,22 @@ public class Unit : WorldBehaviour, ISelectable, IHasHealth, IPlayerProperty {
         if (!meshRenderer)
             meshRenderer = GetComponent<MeshRenderer>();
         PlayerColor = owningPlayer ? owningPlayer.Color : Color.white;
+
+        NavMesh.onPreUpdate += Repath;
     }
-    
+
+    private void OnDestroy() {
+        NavMesh.onPreUpdate -= Repath;
+    }
+
     private List<(Renderer renderer, int materialIndex, Material material)> dynamicMaterials;
+
     private void EnsureDynamicMaterialsAreSetUp() {
         if (dynamicMaterials == null) {
-            dynamicMaterials = new ();
+            dynamicMaterials = new();
             foreach (var renderer in GetComponentsInChildren<Renderer>()) {
                 var materials = renderer.materials;
-                for (var i = 0; i < materials.Length; i++) 
+                for (var i = 0; i < materials.Length; i++)
                     dynamicMaterials.Add((renderer, i, materials[i]));
             }
         }
@@ -71,7 +79,7 @@ public class Unit : WorldBehaviour, ISelectable, IHasHealth, IPlayerProperty {
                 material.SetColor("_BaseColor", playerColor);
         }
     }
-    
+
     public Player OwningPlayer {
         get => owningPlayer;
         set {
@@ -91,12 +99,16 @@ public class Unit : WorldBehaviour, ISelectable, IHasHealth, IPlayerProperty {
     }
 
     public bool TryRepath() {
-        if (NavMesh.CalculatePath(transform.position, moveDestination.Value, -1, navMeshPath)) {
-            movePath.Clear();
+        movePath.Clear();
+        if (moveDestination.HasValue && NavMesh.CalculatePath(transform.position, moveDestination.Value, -1, navMeshPath)) {
             movePath.AddRange(navMeshPath.corners);
             return true;
         }
         return false;
+    }
+
+    public void Repath() {
+        TryRepath();
     }
 
     public void Update() {

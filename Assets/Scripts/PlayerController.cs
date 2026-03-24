@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Unity.VisualScripting;
-using UnityEngine;
+using UnityEngine; 
 
 public class PlayerController : WorldBehaviour {
 
@@ -172,14 +172,16 @@ public class PlayerController : WorldBehaviour {
                     ghost.transform.position = hitInfo.point;
                     ghost.transform.rotation = Quaternion.Euler(0, buildingPlacementYaw, 0);
                     
-                    ghost.GhostColor = CanBePlaced(buildingPrefabToPlace, hitInfo.point, buildingPlacementYaw) ? new Color(0, 1, 0, .5f) : new Color(1, 0, 0, .5f);
+                    var canBePlaced = CanBePlaced(buildingPrefabToPlace, hitInfo.point, buildingPlacementYaw);
+                    ghost.GhostColor = canBePlaced ? new Color(0, 1, 0, .5f) : new Color(1, 0, 0, .5f);
 
-                    if (Input.GetMouseButtonDown(MouseButton.left))
+                    if (canBePlaced && Input.GetMouseButtonDown(MouseButton.left)) {
                         world.Spawn(buildingPrefabToPlace, building => {
                             building.OwningPlayer = player;
                             building.transform.position = hitInfo.point;
                             building.transform.rotation = Quaternion.Euler(0, buildingPlacementYaw, 0);
                         });
+                    }
                 }
                 else 
                     ghost.gameObject.SetActive(false);
