@@ -1,12 +1,15 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AI;
 
 public class Building : WorldBehaviour, ISelectable, IHasHealth, IPlayerProperty {
 
     [SerializeField] private Player owningPlayer;
     [SerializeField] private MeshRenderer meshRenderer;
     [SerializeField] private List<Unit> buildableUnits = new();
-    [SerializeField] private List<Material> ghostMaterials = new();
+    [SerializeField] private List<Material> sharedGhostMaterials = new();
+    [SerializeField] private Collider collider;
+    [SerializeField] private NavMeshObstacle navMeshObstacle;
 
     public Bounds SelectionBounds => meshRenderer.bounds;
 
@@ -58,9 +61,22 @@ public class Building : WorldBehaviour, ISelectable, IHasHealth, IPlayerProperty
 
     private bool isGhost;
     public void SetUpAsGhost() {
+        if (collider)
+            collider.enabled = false;
+        if (navMeshObstacle)
+            navMeshObstacle.enabled = false;
         isGhost = true;
-        meshRenderer.SetSharedMaterials(ghostMaterials);
+        meshRenderer.SetSharedMaterials(sharedGhostMaterials);
     }
 
     public bool IgnoreSelection => isGhost;
+    
+    public Vector3 PlacementExtents => meshRenderer.bounds.extents;
+
+    public Color GhostColor {
+        set {
+            foreach (var sharedMaterial in sharedGhostMaterials) 
+                sharedMaterial.SetColor("_BaseColor", value);
+        }
+    }
 }

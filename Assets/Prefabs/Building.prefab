@@ -60,8 +60,10 @@ MonoBehaviour:
   owningPlayer: {fileID: 0}
   meshRenderer: {fileID: 5252496407325833155}
   buildableUnits: []
-  ghostMaterials:
+  sharedGhostMaterials:
   - {fileID: 2100000, guid: 1e91d09069d8e4742893af05d8627d11, type: 2}
+  collider: {fileID: 3032486110816123938}
+  navMeshObstacle: {fileID: 8503616847452551609}
 --- !u!23 &5252496407325833155
 MeshRenderer:
   m_ObjectHideFlags: 0

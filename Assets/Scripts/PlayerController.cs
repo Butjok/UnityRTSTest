@@ -29,6 +29,7 @@ public class PlayerController : WorldBehaviour {
     [SerializeField] private Unit unitPrefab;
 
     private LayerMask nonUnitLayerMask;
+    private LayerMask nonGroundLayerMask;
 
     public Camera PlayerCamera => playerCamera;
     
@@ -39,9 +40,12 @@ public class PlayerController : WorldBehaviour {
     public Building buildingPrefabToPlace;
     public Dictionary<Building, Building> buildingGhosts = new();
     public float buildingPlacementYaw = 0;
+    
+    public Collider[] placementOverlapColliders = new Collider[10];
 
     private void Awake() {
         nonUnitLayerMask = ~LayerMask.GetMask("Unit");
+        nonGroundLayerMask = ~LayerMask.GetMask("Ground");
         if (playerCameraManagerPrefab)
             playerCameraManager = world.Spawn(playerCameraManagerPrefab, o => o.playerController = this);
         if (playerHUDPrefab)
@@ -167,6 +171,15 @@ public class PlayerController : WorldBehaviour {
                     ghost.gameObject.SetActive(true);
                     ghost.transform.position = hitInfo.point;
                     ghost.transform.rotation = Quaternion.Euler(0, buildingPlacementYaw, 0);
+                    
+                    ghost.GhostColor = CanBePlaced(buildingPrefabToPlace, hitInfo.point, buildingPlacementYaw) ? new Color(0, 1, 0, .5f) : new Color(1, 0, 0, .5f);
+
+                    if (Input.GetMouseButtonDown(MouseButton.left))
+                        world.Spawn(buildingPrefabToPlace, building => {
+                            building.OwningPlayer = player;
+                            building.transform.position = hitInfo.point;
+                            building.transform.rotation = Quaternion.Euler(0, buildingPlacementYaw, 0);
+                        });
                 }
                 else 
                     ghost.gameObject.SetActive(false);
@@ -184,10 +197,7 @@ public class PlayerController : WorldBehaviour {
     
     public void EnsureBuildingGhostExists(Building building) {
         if (!buildingGhosts.ContainsKey(building)) {
-            var ghost = world.Spawn(buildingPrefabToPlace, ghost => {
-                ghost.GetComponent<Collider>().enabled = false;
-                ghost.SetUpAsGhost();
-            });
+            var ghost = world.Spawn(buildingPrefabToPlace, ghost => ghost.SetUpAsGhost());
             buildingGhosts[building] = ghost;
             ghost.gameObject.SetActive(false);
         }
@@ -206,5 +216,9 @@ public class PlayerController : WorldBehaviour {
             playerCamera.transform.position = cameraPosition;
             playerCamera.transform.rotation = cameraRotation;
         }
+    }
+
+    public bool CanBePlaced(Building building, Vector3 position, float yaw) {
+        return Physics.OverlapBoxNonAlloc(position, building.PlacementExtents, placementOverlapColliders, Quaternion.Euler(0, yaw, 0), nonGroundLayerMask) == 0;
     }
 }

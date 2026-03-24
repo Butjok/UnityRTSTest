@@ -57,6 +57,17 @@ MonoBehaviour:
   enableBuildingPlacement: 1
   buildingPrefabToPlace: {fileID: 4128571816054445560, guid: de3edd7c6e1504bc4a5e58ecf29a0874, type: 3}
   buildingPlacementYaw: 0
+  placementOverlapColliders:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
 --- !u!20 &1514448831429975428
 Camera:
   m_ObjectHideFlags: 0
