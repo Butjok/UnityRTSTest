@@ -1,7 +1,7 @@
 using UnityEngine;
 
 public class Player : WorldBehaviour {
-    
+
     public int id = -1;
     public PlayerController controller;
     [SerializeField] private Color color;
@@ -11,6 +11,16 @@ public class Player : WorldBehaviour {
         get => color;
         set {
             color = value;
+            var unitsRegistry = world.GetSubsystem<UnitsRegistry>();
+            if (unitsRegistry)
+                foreach (var unit in unitsRegistry.Entities)
+                    if (unit.OwningPlayer == this)
+                        unit.PlayerColor = color;
+            var buildingsRegistry = world.GetSubsystem<BuildingsRegistry>();
+            if (buildingsRegistry)
+                foreach (var building in buildingsRegistry.Entities)
+                    if (building.OwningPlayer == this)
+                        building.PlayerColor = color;
         }
     }
 

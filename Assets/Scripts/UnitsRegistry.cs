@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 
-public class UnitsRegistry : AbstractEntityRegistry<Unit> {
+public class UnitsRegistry : ObjectRegistry<Unit> {
 
     private Dictionary<Unit, Vector2> pushForces = new();
 

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public abstract class AbstractEntityRegistry<T> : WorldSubsystem {
+public abstract class ObjectRegistry<T> : WorldSubsystem {
 
     private List<T> entities = new();
 

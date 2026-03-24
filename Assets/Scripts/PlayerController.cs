@@ -165,7 +165,11 @@ public class PlayerController : WorldBehaviour {
 
         if (enableBuildingPlacement) {
             if (buildingPrefabToPlace) {
+                
                 EnsureBuildingGhostExists(buildingPrefabToPlace);
+                
+                buildingPlacementYaw += Input.mouseScrollDelta.y * 5;
+                
                 var ghost = buildingGhosts[buildingPrefabToPlace];
                 if (TryTraceRay(Input.mousePosition, out var hitInfo)) {
                     ghost.gameObject.SetActive(true);
@@ -180,6 +184,7 @@ public class PlayerController : WorldBehaviour {
                             building.OwningPlayer = player;
                             building.transform.position = hitInfo.point;
                             building.transform.rotation = Quaternion.Euler(0, buildingPlacementYaw, 0);
+                            building.SetPlayConstructionAnimationOnStart(true);
                         });
                     }
                 }

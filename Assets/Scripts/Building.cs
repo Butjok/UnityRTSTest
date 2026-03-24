@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
@@ -10,6 +11,13 @@ public class Building : WorldBehaviour, ISelectable, IHasHealth, IPlayerProperty
     [SerializeField] private List<Material> sharedGhostMaterials = new();
     [SerializeField] private Collider collider;
     [SerializeField] private NavMeshObstacle navMeshObstacle;
+    [SerializeField] private bool isReady = true;
+    
+    private List<(Renderer renderer, int materialIndex, Material material)> dynamicMaterials;
+    private float health = 1;
+    private Color playerColor;
+    private bool isGhost;
+    private bool playConstructionAnimationOnStart;
 
     public Bounds SelectionBounds => meshRenderer.bounds;
 
@@ -19,8 +27,6 @@ public class Building : WorldBehaviour, ISelectable, IHasHealth, IPlayerProperty
         get => isSelected;
         set { isSelected = value; }
     }
-
-    private float health = 1;
 
     public float Health {
         get => health;
@@ -35,31 +41,32 @@ public class Building : WorldBehaviour, ISelectable, IHasHealth, IPlayerProperty
         }
     }
     
-    private List<(Renderer renderer, int materialIndex, Material material)> dynamicMaterials;
+    public void SetPlayConstructionAnimationOnStart(bool value) {
+        playConstructionAnimationOnStart = value;
+        isReady = !playConstructionAnimationOnStart;
+    }
+
     private void EnsureDynamicMaterialsAreSetUp() {
         if (dynamicMaterials == null) {
-            dynamicMaterials = new ();
+            dynamicMaterials = new();
             foreach (var renderer in GetComponentsInChildren<Renderer>()) {
                 var materials = renderer.materials;
-                for (var i = 0; i < materials.Length; i++) 
+                for (var i = 0; i < materials.Length; i++)
                     dynamicMaterials.Add((renderer, i, materials[i]));
             }
         }
     }
-
-    private Color playerColor;
 
     public Color PlayerColor {
         get => playerColor;
         set {
             playerColor = value;
             EnsureDynamicMaterialsAreSetUp();
-            foreach (var (_, _, material) in dynamicMaterials) 
+            foreach (var (_, _, material) in dynamicMaterials)
                 material.SetColor("_BaseColor", playerColor);
         }
     }
 
-    private bool isGhost;
     public void SetUpAsGhost() {
         if (collider)
             collider.enabled = false;
@@ -70,13 +77,38 @@ public class Building : WorldBehaviour, ISelectable, IHasHealth, IPlayerProperty
     }
 
     public bool IgnoreSelection => isGhost;
-    
+
     public Vector3 PlacementExtents => meshRenderer.bounds.extents;
 
     public Color GhostColor {
         set {
-            foreach (var sharedMaterial in sharedGhostMaterials) 
+            foreach (var sharedMaterial in sharedGhostMaterials)
                 sharedMaterial.SetColor("_BaseColor", value);
         }
+    }
+
+    private IEnumerator constructionAnimationCoroutine;
+
+    private void Start() {
+        if (playConstructionAnimationOnStart) {
+            constructionAnimationCoroutine = ConstructionAnimation();
+            StartCoroutine(constructionAnimationCoroutine);
+        }
+    }
+
+    private IEnumerator ConstructionAnimation() {
+        var startScale = transform.localScale;
+        var elapsed = 0f;
+        var duration = 1f;
+        while (elapsed < duration) {
+            var t = elapsed / duration;
+            var scale = startScale;
+            scale.y = t;
+            transform.localScale = scale;
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+        transform.localScale = startScale;
+        isReady = true;
     }
 }
