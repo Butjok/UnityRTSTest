@@ -1,40 +1,26 @@
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.AI;
 
-public class UnitsRegistry : WorldSubsystem {
+public class UnitsRegistry : AbstractEntityRegistry<Unit> {
 
-    public List<Unit> units = new();
     private Dictionary<Unit, Vector2> pushForces = new();
 
-    public void Start() {
-        units = FindObjectsByType<Unit>(FindObjectsInactive.Include, FindObjectsSortMode.None).ToList();
-
-        world.onObjectSpawned += AddUnit;
-        world.onObjectDestroyed += RemoveUnit;
-    }
-
-    public void OnDestroy() {
-        world.onObjectSpawned -= AddUnit;
-        world.onObjectDestroyed -= RemoveUnit;
-    }
-
-    public void Update() {
+    private void Update() {
         pushForces.Clear();
 
-        foreach (var pushingUnit in units)
-        foreach (var pushedUnit in units) {
+        foreach (var pushingUnit in Entities)
+        foreach (var pushedUnit in Entities) {
             if (pushedUnit == pushingUnit)
                 continue;
             var distance = Vector2.Distance(pushingUnit.transform.position.ToVector2(), pushedUnit.transform.position.ToVector2());
-            if (distance < pushingUnit.radiusInFormation + pushedUnit.radiusInFormation) {
+            if (distance < pushingUnit.RadiusInFormation + pushedUnit.RadiusInFormation) {
                 var pushDirection = (pushedUnit.transform.position - pushingUnit.transform.position).ToVector2().normalized;
                 if (pushDirection == Vector2.zero) {
                     var randomAngle = Random.Range(0, 2 * Mathf.PI);
                     pushDirection = new Vector2(Mathf.Cos(randomAngle), Mathf.Sin(randomAngle));
                 }
-                var pushForce = (pushingUnit.radiusInFormation + pushedUnit.radiusInFormation - distance) * pushDirection * 5;
+                var pushForce = (pushingUnit.RadiusInFormation + pushedUnit.RadiusInFormation - distance) * pushDirection * 5;
                 pushForces[pushedUnit] = pushForces.GetValueOrDefault(pushedUnit, Vector2.zero) + pushForce;
             }
         }
@@ -46,15 +32,5 @@ public class UnitsRegistry : WorldSubsystem {
                 newPushedUnitPosition = hit.position;
             pushedUnit.transform.position = newPushedUnitPosition;
         }
-    }
-
-    public void AddUnit(Object obj) {
-        if (obj is Unit unit)
-            units.Add(unit);
-    }
-
-    public void RemoveUnit(Object obj) {
-        if (obj is Unit unit)
-            units.Remove(unit);
     }
 }

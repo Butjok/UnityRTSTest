@@ -50,12 +50,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   world: {fileID: 0}
+  owningPlayer: {fileID: 0}
+  cost: 1000
   meshRenderer: {fileID: 3831960648216866428}
   pathRenderer: {fileID: 3291945252028627405}
   selectionCircleRenderer: {fileID: 635482942073229039}
   radiusInFormation: 0.5
   moveSpeed: 3
-  health: 1
+  health: 0.3
 --- !u!135 &2557441229617441091
 SphereCollider:
   m_ObjectHideFlags: 0

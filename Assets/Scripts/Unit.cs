@@ -2,40 +2,82 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 
-public class Unit : WorldBehaviour {
+public class Unit : WorldBehaviour, ISelectable, IHasHealth, IPlayerProperty {
 
-    public MeshRenderer meshRenderer;
-    public LineRenderer pathRenderer;
-    public Renderer selectionCircleRenderer;
+    [SerializeField] private Player owningPlayer;
+    [SerializeField] private int cost = 1000;
 
-    public float radiusInFormation = .5f;
-    public float moveSpeed = 3;
-    public float health = 1;
+    [SerializeField] private MeshRenderer meshRenderer;
+    [SerializeField] private LineRenderer pathRenderer;
+    [SerializeField] private Renderer selectionCircleRenderer;
+
+    [SerializeField] private float radiusInFormation = .5f;
+    [SerializeField] private float moveSpeed = 3;
+    [SerializeField] private float health = 1;
 
     private Vector3? moveDestination = null;
     private NavMeshPath navMeshPath;
     private List<Vector3> movePath = new();
 
-    // this is used to rotate the unit to face the direction it's moving in
     private Vector3? lastPosition = null;
-    
-    // this is a scratch variable to avoid allocating a new list every frame for the path segments to render
     private List<(Vector3 start, Vector3 end)> segments = new();
 
-    // this is used to avoid enabling/disabling the selection circle renderer every frame when the unit is selected
-    private bool? oldIsSelected = null;
+    public Bounds SelectionBounds => meshRenderer.bounds;
+
+    private bool isSelected = false;
 
     public bool IsSelected {
-        get {
-            var playerController = world.playerController;
-            return playerController != null && playerController.selectedUnits.Contains(this);
+        get => isSelected;
+        set {
+            isSelected = value;
+            selectionCircleRenderer.enabled = value;
         }
     }
+
+    public float Health {
+        get => health;
+        set => health = Mathf.Clamp01(value);
+    }
+
+    public float RadiusInFormation => radiusInFormation;
 
     public void Awake() {
         navMeshPath = new NavMeshPath();
         if (!meshRenderer)
             meshRenderer = GetComponent<MeshRenderer>();
+        PlayerColor = owningPlayer ? owningPlayer.Color : Color.white;
+    }
+    
+    private List<(Renderer renderer, int materialIndex, Material material)> dynamicMaterials;
+    private void EnsureDynamicMaterialsAreSetUp() {
+        if (dynamicMaterials == null) {
+            dynamicMaterials = new ();
+            foreach (var renderer in GetComponentsInChildren<Renderer>()) {
+                var materials = renderer.materials;
+                for (var i = 0; i < materials.Length; i++) 
+                    dynamicMaterials.Add((renderer, i, materials[i]));
+            }
+        }
+    }
+
+    private Color playerColor;
+
+    public Color PlayerColor {
+        get => playerColor;
+        set {
+            playerColor = value;
+            EnsureDynamicMaterialsAreSetUp();
+            foreach (var (_, _, material) in dynamicMaterials)
+                material.SetColor("_BaseColor", playerColor);
+        }
+    }
+    
+    public Player OwningPlayer {
+        get => owningPlayer;
+        set {
+            owningPlayer = value;
+            PlayerColor = owningPlayer ? owningPlayer.Color : Color.white;
+        }
     }
 
     public void SetMoveDestination(Vector3 destination) {
@@ -60,31 +102,29 @@ public class Unit : WorldBehaviour {
     public void Update() {
         pathRenderer.enabled = IsSelected && movePath.Count >= 2;
 
-        if (moveDestination != null) {
-            if (movePath.Count >= 2) {
-                MathUtility.FindClosestPointOnPolyline(transform.position, movePath, out var polylineDistance, out int closestSegmentIndex);
-                var targetPoint = MathUtility.GetPointOnPolylineByDistance(movePath, polylineDistance + moveSpeed * Time.deltaTime, out var isEndOfPolyline);
-                var toTargetPoint = targetPoint - transform.position;
-                if (toTargetPoint != Vector3.zero) {
-                    var moveDirection = toTargetPoint.normalized;
-                    transform.position += moveDirection * moveSpeed * Time.deltaTime;
-                    if (isEndOfPolyline)
-                        ClearMoveDestination();
-                }
+        if (moveDestination != null && movePath.Count >= 2) {
+            MathUtility.FindClosestPointOnPolyline(transform.position, movePath, out var polylineDistance, out int closestSegmentIndex);
+            var targetPoint = MathUtility.GetPointOnPolylineByDistance(movePath, polylineDistance + moveSpeed * Time.deltaTime, out var isEndOfPolyline);
+            var toTargetPoint = targetPoint - transform.position;
+            if (toTargetPoint != Vector3.zero) {
+                var moveDirection = toTargetPoint.normalized;
+                transform.position += moveDirection * moveSpeed * Time.deltaTime;
+                if (isEndOfPolyline)
+                    ClearMoveDestination();
+            }
 
-                if (pathRenderer.enabled) {
-                    segments.Clear();
-                    for (var segmentIndex = closestSegmentIndex; segmentIndex < movePath.Count - 1; segmentIndex++) {
-                        var start = segmentIndex == closestSegmentIndex ? targetPoint : movePath[segmentIndex];
-                        var end = movePath[segmentIndex + 1];
-                        segments.Add((start, end));
-                    }
-                    pathRenderer.positionCount = segments.Count + 1;
-                    if (segments.Count > 0) {
-                        pathRenderer.SetPosition(0, segments[0].start);
-                        for (var i = 0; i < segments.Count; i++)
-                            pathRenderer.SetPosition(i + 1, segments[i].end);
-                    }
+            if (pathRenderer.enabled) {
+                segments.Clear();
+                for (var segmentIndex = closestSegmentIndex; segmentIndex < movePath.Count - 1; segmentIndex++) {
+                    var start = segmentIndex == closestSegmentIndex ? targetPoint : movePath[segmentIndex];
+                    var end = movePath[segmentIndex + 1];
+                    segments.Add((start, end));
+                }
+                pathRenderer.positionCount = segments.Count + 1;
+                if (segments.Count > 0) {
+                    pathRenderer.SetPosition(0, segments[0].start);
+                    for (var i = 0; i < segments.Count; i++)
+                        pathRenderer.SetPosition(i + 1, segments[i].end);
                 }
             }
         }
@@ -97,11 +137,5 @@ public class Unit : WorldBehaviour {
             }
         }
         lastPosition = transform.position;
-
-        if (oldIsSelected != IsSelected) {
-            oldIsSelected = IsSelected;
-            
-            selectionCircleRenderer.enabled = IsSelected;
-        }
     }
 }

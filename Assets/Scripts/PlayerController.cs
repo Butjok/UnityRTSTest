@@ -1,39 +1,55 @@
+using System;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class PlayerController : WorldBehaviour {
 
-    public Camera playerCamera;
-    public PlayerCameraManager playerCameraManagerPrefab;
-    public PlayerCameraManager playerCameraManager;
+    public Player player;
 
-    public Vector2? marqueeStart;
-    public Vector2 marqueeEnd;
-    public List<Unit> selectedUnits = new();
-    public Dictionary<Unit, Vector3> formationPositions = new();
+    [SerializeField] private Camera playerCamera;
+    [SerializeField] private PlayerCameraManager playerCameraManagerPrefab;
+    private PlayerCameraManager playerCameraManager;
 
-    public PlayerHUD playerHUDPrefab;
-    public PlayerHUD playerHUD;
+    [NonSerialized] public Vector2? marqueeStart;
+    [NonSerialized] public Vector2 marqueeEnd;
 
-    public Unit unitPrefab;
+    private List<ISelectable> selectedEntities = new();
+    private HashSet<ISelectable> oldSelectedEntitiesSet = new();
+    private HashSet<ISelectable> selectedEntitiesSet = new();
+    
+    private List<Unit> selectedUnits = new();
+    private List<Building> selectedBuildings = new();
+
+    private Dictionary<Unit, Vector3> formationPositions = new();
+
+    [SerializeField] private PlayerHUD playerHUDPrefab;
+    private PlayerHUD playerHUD;
+
+    [SerializeField] private Unit unitPrefab;
 
     private LayerMask nonUnitLayerMask;
 
-    public void Awake() {
+    public Camera PlayerCamera => playerCamera;
+
+    private void Awake() {
         nonUnitLayerMask = ~LayerMask.GetMask("Unit");
         if (playerCameraManagerPrefab)
             playerCameraManager = world.Spawn(playerCameraManagerPrefab, o => o.playerController = this);
         if (playerHUDPrefab)
-            playerHUD = world.Spawn(playerHUDPrefab);
+            playerHUD = world.Spawn(playerHUDPrefab, playerHUD => playerHUD.owningPlayerController = this);
 
         UpdatePlayerCameraTransform();
 
         if (TryTraceRay(new Vector2(Screen.width, Screen.height) / 2, out var hitInfo))
             for (var i = 0; i < 10; i++)
-                world.Spawn(unitPrefab, unit => unit.transform.position = hitInfo.point);
+                world.Spawn(unitPrefab, unit => {
+                    unit.OwningPlayer = player;
+                    unit.transform.position = hitInfo.point;
+                });
     }
 
-    public void Update() {
+    private void Update() {
         var movementInput = Vector2.zero;
         if (Input.GetKey(KeyCode.W))
             movementInput.y += 1;
@@ -47,7 +63,8 @@ public class PlayerController : WorldBehaviour {
             var cameraForward = Vector3.Scale(playerCamera.transform.forward, new Vector3(1, 0, 1)).normalized;
             var cameraRight = new Vector3(cameraForward.z, 0, -cameraForward.x);
             var movementDirection = cameraForward * movementInput.y + cameraRight * movementInput.x;
-            playerCameraManager.position += movementDirection * (Time.deltaTime * 5);
+            var speedUp = Input.GetKey(KeyCode.LeftShift) ? 2 : 1;
+            playerCameraManager.position += movementDirection * (Time.deltaTime * 5 * speedUp);
         }
 
         var rotationInput = 0;
@@ -64,29 +81,52 @@ public class PlayerController : WorldBehaviour {
             marqueeStart = Input.mousePosition;
             marqueeEnd = marqueeStart.Value;
 
-            selectedUnits.Clear();
+            selectedEntities.Clear();
+            selectedEntitiesSet.Clear();
         }
+
         else if (Input.GetMouseButton(MouseButton.left)) {
             marqueeEnd = Input.mousePosition;
 
+            selectedEntities.Clear();
+            selectedEntitiesSet.Clear();
             selectedUnits.Clear();
-            var unitsRegistry = world.GetSubsystem<UnitsRegistry>();
-            if (unitsRegistry)
-                foreach (var unit in unitsRegistry.units) {
-                    var onScreenBounds = playerHUD.GetOnScreenBounds(unit.meshRenderer, playerCamera);
+            selectedBuildings.Clear();
+
+            var selectablesRegistry = world.GetSubsystem<SelectablesRegistry>();
+            if (selectablesRegistry)
+                foreach (var selectable in selectablesRegistry.Entities) {
+                    var onScreenBounds = playerHUD.GetOnScreenBounds(selectable.SelectionBounds, playerCamera);
                     var marqueeMin = Vector2.Min(marqueeStart.Value, marqueeEnd);
                     var marqueeMax = Vector2.Max(marqueeStart.Value, marqueeEnd);
                     var marqueeRect = Rect.MinMaxRect(marqueeMin.x, marqueeMin.y, marqueeMax.x, marqueeMax.y);
-                    if (marqueeRect.Overlaps(onScreenBounds))
-                        selectedUnits.Add(unit);
+                    if (marqueeRect.Overlaps(onScreenBounds)) {
+                        selectedEntities.Add(selectable);
+                        if (selectable is Unit unit)
+                            selectedUnits.Add(unit);
+                        else if (selectable is Building building)
+                            selectedBuildings.Add(building);
+                    }
                 }
+            selectedEntitiesSet.AddRange(selectedEntities);
+
+            foreach (var selectable in selectedEntitiesSet)
+                if (!oldSelectedEntitiesSet.Contains(selectable))
+                    selectable.IsSelected = true;
+            foreach (var selectable in oldSelectedEntitiesSet)
+                if (!selectedEntitiesSet.Contains(selectable))
+                    selectable.IsSelected = false;
+
+            oldSelectedEntitiesSet.Clear();
+            oldSelectedEntitiesSet.UnionWith(selectedEntitiesSet);
         }
+
         else if (Input.GetMouseButtonUp(MouseButton.left)) {
             marqueeStart = null;
             marqueeEnd = Vector2.zero;
         }
 
-        if (Input.GetMouseButtonDown(MouseButton.right) && selectedUnits.Count > 0) {
+        if (Input.GetMouseButtonDown(MouseButton.right) && selectedEntities.Count > 0) {
             if (TryTraceRay(Input.mousePosition, out var hitInfo)) {
                 var targetPosition = hitInfo.point;
 
@@ -107,7 +147,10 @@ public class PlayerController : WorldBehaviour {
 
         if (Input.GetKeyDown(KeyCode.Space)) {
             if (TryTraceRay(Input.mousePosition, out var hitInfo))
-                world.Spawn(unitPrefab, unit => unit.transform.position = hitInfo.point);
+                world.Spawn(unitPrefab, unit => {
+                    unit.OwningPlayer = player;
+                    unit.transform.position = hitInfo.point;
+                });
         }
     }
 

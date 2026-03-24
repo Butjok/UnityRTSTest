@@ -1,24 +1,74 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerHUD : WorldBehaviour {
 
-    private Texture2D marqueeBoxTexture;
-    private Texture2D unitHealthBarTexture_Green;
-    private Texture2D unitHealthBarTexture_Yellow;
-    private Texture2D unitHealthBarTexture_Red;
+    [Serializable]
+    private struct HealthColorRampPoint {
+        [SerializeField] public float end;
+        [SerializeField] public Color color;
+        [NonSerialized] public Texture2D onePixelTexture;
+        [NonSerialized] public GUIStyle style;
+    }
 
-    private GUIStyle marqueeBoxStyle;
+    public PlayerController owningPlayerController;
 
-    private GUIStyle unitHealthBarStyle_Background;
-    private GUIStyle unitHealthBarStyle_Green;
-    private GUIStyle unitHealthBarStyle_Yellow;
-    private GUIStyle unitHealthBarStyle_Red;
+    [Header("Selection Marquee")] [SerializeField]
+    private Color marqueeColor = new(1, 1, 1, .5f);
 
-    public float unitHealthBarHeight = 2.5f;
-    public Vector2 unitHealthBarPadding = new(1, 1);
+    private Texture2D marqueeBackgroundTexture;
+    private GUIStyle marqueeGUIStyle;
 
-    public Rect GetOnScreenBounds(Renderer renderer, Camera camera) {
-        var bounds = renderer.bounds;
+    [Header("Unit Health Bar")] [SerializeField]
+    private Color unitHealthBarBackgroundColor = new(0, 0, 0, .5f);
+
+    private Texture2D unitHealthBarBackgroundTexture;
+    private GUIStyle unitHealthBarGUIStyle;
+
+    [SerializeField] private float unitHealthBarHeight = 2.5f;
+    [SerializeField] private Vector2 unitHealthBarPadding = new(1, 1);
+
+    [SerializeField] private List<HealthColorRampPoint> unitHealthBarColorRamp = new() {
+        new HealthColorRampPoint { end = .25f, color = Color.red },
+        new HealthColorRampPoint { end = .5f, color = Color.yellow },
+        new HealthColorRampPoint { end = 1, color = Color.green },
+    };
+
+    private void Awake() {
+        marqueeBackgroundTexture = new Texture2D(1, 1);
+        marqueeBackgroundTexture.SetPixel(0, 0, marqueeColor);
+        marqueeBackgroundTexture.Apply();
+        marqueeGUIStyle = new GUIStyle {
+            normal = {
+                background = marqueeBackgroundTexture
+            }
+        };
+
+        for (var i = 0; i < unitHealthBarColorRamp.Count; i++) {
+            var rampPoint = unitHealthBarColorRamp[i];
+            rampPoint.onePixelTexture = new Texture2D(1, 1);
+            rampPoint.onePixelTexture.SetPixel(0, 0, rampPoint.color);
+            rampPoint.onePixelTexture.Apply();
+            rampPoint.style = new GUIStyle {
+                normal = {
+                    background = rampPoint.onePixelTexture
+                }
+            };
+            unitHealthBarColorRamp[i] = rampPoint;
+        }
+
+        unitHealthBarBackgroundTexture = new Texture2D(1, 1);
+        unitHealthBarBackgroundTexture.SetPixel(0, 0, unitHealthBarBackgroundColor);
+        unitHealthBarBackgroundTexture.Apply();
+        unitHealthBarGUIStyle = new GUIStyle {
+            normal = {
+                background = unitHealthBarBackgroundTexture
+            }
+        };
+    }
+
+    public Rect GetOnScreenBounds(Bounds bounds, Camera camera) {
         var corners = new Vector3[8];
         corners[0] = bounds.min;
         corners[1] = bounds.max;
@@ -48,66 +98,20 @@ public class PlayerHUD : WorldBehaviour {
         GUI.Box(rectangle, "", style ?? GUI.skin.box);
     }
 
-    public void OnGUI() {
-        if (!marqueeBoxTexture) {
-            marqueeBoxTexture = new Texture2D(1, 1);
-            marqueeBoxTexture.SetPixel(0, 0, new Color(1, 1, 1, .5f));
-            marqueeBoxTexture.Apply();
-        }
-        if (!unitHealthBarTexture_Green) {
-            unitHealthBarTexture_Green = new Texture2D(1, 1);
-            unitHealthBarTexture_Green.SetPixel(0, 0, new Color(0, 1, 0, 1));
-            unitHealthBarTexture_Green.Apply();
-        }
-        if (!unitHealthBarTexture_Yellow) {
-            unitHealthBarTexture_Yellow = new Texture2D(1, 1);
-            unitHealthBarTexture_Yellow.SetPixel(0, 0, new Color(1, 1, 0, 1));
-            unitHealthBarTexture_Yellow.Apply();
-        }
-        if (!unitHealthBarTexture_Red) {
-            unitHealthBarTexture_Red = new Texture2D(1, 1);
-            unitHealthBarTexture_Red.SetPixel(0, 0, new Color(1, 0, 0, 1));
-            unitHealthBarTexture_Red.Apply();
-        }
-        marqueeBoxStyle ??= new GUIStyle {
-            normal = {
-                background = marqueeBoxTexture
-            }
-        };
-        unitHealthBarStyle_Background ??= new GUIStyle {
-            normal = {
-                background = Texture2D.whiteTexture
-            }
-        };
-        unitHealthBarStyle_Green ??= new GUIStyle {
-            normal = {
-                background = unitHealthBarTexture_Green
-            }
-        };
-        unitHealthBarStyle_Yellow ??= new GUIStyle {
-            normal = {
-                background = unitHealthBarTexture_Yellow
-            }
-        };
-        unitHealthBarStyle_Red ??= new GUIStyle {
-            normal = {
-                background = unitHealthBarTexture_Red
-            }
-        };
-
-        if (world.playerController.marqueeStart is { } actualMarqueeStart) {
-            var min = Vector2.Min(actualMarqueeStart, world.playerController.marqueeEnd);
-            var max = Vector2.Max(actualMarqueeStart, world.playerController.marqueeEnd);
+    private void OnGUI() {
+        
+        if (owningPlayerController.marqueeStart is { } actualMarqueeStart) {
+            var min = Vector2.Min(actualMarqueeStart, owningPlayerController.marqueeEnd);
+            var max = Vector2.Max(actualMarqueeStart, owningPlayerController.marqueeEnd);
             var rectangle = new Rect(min, max - min);
-            DrawRectangle(ToGUICoordinates(rectangle), marqueeBoxStyle);
+            DrawRectangle(ToGUICoordinates(rectangle), marqueeGUIStyle);
         }
 
-        var unitsRegistry = world.GetSubsystem<UnitsRegistry>();
-        if (unitsRegistry)
-            foreach (var unit in unitsRegistry.units) {
-                var isSelected = world.playerController.selectedUnits.Contains(unit);
-                if (isSelected) {
-                    var onScreenBounds = GetOnScreenBounds(unit.meshRenderer, world.playerController.playerCamera);
+        var selectablesRegistry = world.GetSubsystem<SelectablesRegistry>();
+        if (selectablesRegistry)
+            foreach (var selectable in selectablesRegistry.Entities)
+                if (selectable.IsSelected && selectable is IHasHealth selectableHealth) {
+                    var onScreenBounds = GetOnScreenBounds(selectable.SelectionBounds, owningPlayerController.PlayerCamera);
                     var healthBarRectangle = ToGUICoordinates(new Rect(
                         onScreenBounds.xMin, onScreenBounds.yMin - unitHealthBarHeight,
                         onScreenBounds.width, unitHealthBarHeight
@@ -118,17 +122,24 @@ public class PlayerHUD : WorldBehaviour {
                     healthBarBackgroundRectangle.width += unitHealthBarPadding.x * 2;
                     healthBarBackgroundRectangle.y -= unitHealthBarPadding.y;
                     healthBarBackgroundRectangle.height += unitHealthBarPadding.y * 2;
-                    DrawRectangle(healthBarBackgroundRectangle, unitHealthBarStyle_Background);
+                    DrawRectangle(healthBarBackgroundRectangle, unitHealthBarGUIStyle);
 
                     var healthBarFilledRectangle = healthBarRectangle;
-                    healthBarFilledRectangle.width = healthBarRectangle.width * unit.health;
-                    var fillStyle = unit.health switch {
-                        > .5f => unitHealthBarStyle_Green,
-                        > .25f => unitHealthBarStyle_Yellow,
-                        _ => unitHealthBarStyle_Red
-                    };
-                    DrawRectangle(healthBarFilledRectangle, fillStyle);
+                    healthBarFilledRectangle.width = healthBarRectangle.width * selectableHealth.Health;
+
+                    var intervalStart = .0f;
+                    GUIStyle fillStyle = null;
+                    for (var i = 0; i < unitHealthBarColorRamp.Count; i++) {
+                        var rampPoint = unitHealthBarColorRamp[i];
+                        var intervalEnd = rampPoint.end;
+                        if (selectableHealth.Health >= intervalStart && selectableHealth.Health <= intervalEnd) {
+                            fillStyle = rampPoint.style;
+                            break;
+                        }
+                        intervalStart = intervalEnd;
+                    }
+                    if (fillStyle != null)
+                        DrawRectangle(healthBarFilledRectangle, fillStyle);
                 }
-            }
     }
 }

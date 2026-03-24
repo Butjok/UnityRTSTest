@@ -36,7 +36,7 @@ public static class UnitFormation {
         units.AddRange(positions.Keys);
         foreach (var unit in units) {
             if (unitRadius == 0)
-                unitRadius = unit.radiusInFormation;
+                unitRadius = unit.RadiusInFormation;
 
             var ringCapacity = RingCapacity(ringIndex);
             if (indexInRing >= ringCapacity) {

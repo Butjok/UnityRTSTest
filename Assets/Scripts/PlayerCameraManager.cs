@@ -50,6 +50,8 @@ public class PlayerCameraManager : WorldBehaviour {
                 lastOffsetWS = offsetWS;
                 yield return null;
             }
+            // snap yaw to step degrees
+            this.yaw = Mathf.Round(this.yaw / rotationYawStepDegrees) * rotationYawStepDegrees;
         }
         rotationCoroutine = null;
     }

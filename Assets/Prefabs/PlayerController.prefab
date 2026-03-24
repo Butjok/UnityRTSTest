@@ -47,13 +47,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   world: {fileID: 0}
+  player: {fileID: 0}
   playerCamera: {fileID: 1514448831429975428}
   playerCameraManagerPrefab: {fileID: 223674565629059951, guid: 987e841f50cc74391a0db8e08e96e22f, type: 3}
-  playerCameraManager: {fileID: 0}
-  marqueeEnd: {x: 0, y: 0}
-  selectedUnits: []
   playerHUDPrefab: {fileID: 3662289192355675341, guid: 395d30d0c486845238e6bfd177424f15, type: 3}
-  playerHUD: {fileID: 0}
   unitPrefab: {fileID: 8676087694340533686, guid: cbb1a2defcacc4ea2af8ce9538274c01, type: 3}
 --- !u!20 &1514448831429975428
 Camera:
